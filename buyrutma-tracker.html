@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ky">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Буйрутма Трекер</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: -apple-system, Roboto, Arial, sans-serif;
+    background: #f2f4f7; color: #1a1f36; padding-bottom: 30px;
+  }
+  #loading {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #fff; font-size: 18px; z-index: 999; padding: 20px;
+  }
+  .hidden { display: none !important; }
+  header {
+    background: #2d5be3; color: #fff; padding: 16px; display: flex;
+    justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { font-size: 12px; opacity: 0.85; }
+  .btn {
+    border: none; border-radius: 10px; padding: 12px 16px; font-size: 15px;
+    font-weight: 600; cursor: pointer; touch-action: manipulation;
+  }
+  .btn-primary { background: #2d5be3; color: #fff; }
+  .btn-success { background: #17b26a; color: #fff; }
+  .btn-danger { background: #e02d3c; color: #fff; }
+  .btn-purple { background: #7c3aed; color: #fff; }
+  .btn-ghost { background: rgba(255,255,255,0.15); color: #fff; }
+  .btn-block { width: 100%; margin-top: 6px; }
+  .container { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  input, textarea, select {
+    width: 100%; padding: 12px; border: 1px solid #d7dbe3; border-radius: 10px;
+    font-size: 15px; margin-bottom: 10px; font-family: inherit; background: #fff;
+  }
+  label { font-size: 13px; color: #6b7280; font-weight: 600; display: block; margin-bottom: 4px; }
+  .tabs { display: flex; gap: 6px; padding: 12px 12px 0; overflow-x: auto; }
+  .tab {
+    flex: 0 0 auto; text-align: center; padding: 10px 12px; border-radius: 10px; font-size: 13px;
+    font-weight: 600; background: #e6e9f0; color: #6b7280; cursor: pointer; white-space: nowrap;
+  }
+  .tab.active { background: #2d5be3; color: #fff; }
+  .badge {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  }
+  .badge-new { background: #fef3c7; color: #92400e; }
+  .badge-claimed { background: #dbeafe; color: #1e40af; }
+  .badge-measured { background: #ede9fe; color: #5b21b6; }
+  .badge-production { background: #ffe4d5; color: #9a3412; }
+  .badge-ready { background: #d1fae5; color: #065f46; }
+  .badge-installed { background: #d1fae5; color: #065f46; }
+  .order-title { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+  .order-desc { font-size: 14px; color: #4b5563; margin: 0 0 8px; white-space: pre-wrap; }
+  .order-meas { font-size: 14px; color: #5b21b6; background:#f5f3ff; padding:8px 10px; border-radius:8px; margin: 0 0 8px; white-space: pre-wrap; }
+  .order-meta { font-size: 12px; color: #9ca3af; margin-bottom: 10px; }
+  .empty { text-align: center; color: #9ca3af; padding: 40px 20px; font-size: 14px; }
+  .error-msg { color: #e02d3c; font-size: 13px; margin-bottom: 10px; }
+  .fab-space { height: 70px; }
+  .worker-row {
+    display: flex; justify-content: space-between; align-items: center; padding: 10px 0;
+    border-bottom: 1px solid #eef0f4;
+  }
+  .worker-row:last-child { border-bottom: none; }
+  .role-pill {
+    font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: #e6e9f0; color: #4b5563;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="text-align:center;">
+    <div id="loadingText">Жүктөлүүдө...</div>
+    <div id="loadingDetail" style="font-size:12px;color:#9ca3af;margin-top:10px;max-width:280px;"></div>
+    <button id="loadingRetryBtn" class="btn btn-danger" style="margin-top:16px;display:none;" onclick="location.reload()">Кайра жүктөө</button>
+    <button id="loadingLogoutBtn" class="btn btn-ghost" style="margin-top:8px;display:none;color:#333;background:#eee;" onclick="forceLogout()">Login экранга кайтуу</button>
+  </div>
+</div>
+
+<!-- ЛОГИН ЭКРАНЫ -->
+<div id="loginScreen" class="hidden">
+  <div class="container" style="padding-top:60px;">
+    <div class="card">
+      <h2 style="margin-top:0;text-align:center;">Буйрутма Трекер</h2>
+      <div id="loginError" class="error-msg hidden"></div>
+      <label>Электрондук почта</label>
+      <input type="email" id="loginEmail" placeholder="email@example.com" autocomplete="username">
+      <label>Сырсөз</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+      <button class="btn btn-primary btn-block" onclick="doLogin()">Кирүү</button>
+    </div>
+  </div>
+</div>
+
+<!-- АДМИН ЭКРАНЫ -->
+<div id="adminScreen" class="hidden">
+  <header>
+    <div>
+      <h1>Админ панели</h1>
+      <div class="sub" id="adminNameLabel"></div>
+    </div>
+    <button class="btn btn-ghost" onclick="doLogout()">Чыгуу</button>
+  </header>
+  <div class="tabs">
+    <div class="tab active" id="adminTabOrders" onclick="showAdminTab('orders')">Буйрутмалар</div>
+    <div class="tab" id="adminTabWorkers" onclick="showAdminTab('workers')">Кызматкерлер</div>
+  </div>
+
+  <div class="container" id="adminOrdersTab">
+    <div class="card">
+      <label>Буйрутма түрү</label>
+      <select id="orderTypeSelect" onchange="onOrderTypeChange()">
+        <option value="Тунукафон">Тунукафон</option>
+        <option value="Ноо орнотуу">Ноо орнотуу</option>
+        <option value="Тетир волна">Тетир волна</option>
+        <option value="Конёк">Конёк</option>
+        <option value="OTHER">Башка (өзү жазуу)</option>
+      </select>
+      <input type="text" id="newOrderTitle" placeholder="Буйрутма аталышы" style="display:none;">
+
+      <label>Кардардын телефону</label>
+      <input type="tel" id="newOrderPhone" placeholder="+996 5XX XXX XXX">
+
+      <label>Кардардын дареги</label>
+      <input type="text" id="newOrderAddress" placeholder="Мис: Ош шаары, Ленин көчөсү 12">
+
+      <label>Сүрөттөмө (милдеттүү эмес)</label>
+      <textarea id="newOrderDesc" rows="3" placeholder="Кошумча маалымат..."></textarea>
+      <button class="btn btn-primary btn-block" onclick="createOrder()">Орнотуучуларга жарыялоо</button>
+    </div>
+    <div id="adminOrdersList"></div>
+    <div class="fab-space"></div>
+  </div>
+
+  <div class="container hidden" id="adminWorkersTab">
+    <div class="card">
+      <label>Кызматкердин аты</label>
+      <input type="text" id="newWorkerName" placeholder="Мис: Азамат">
+      <label>Ролу</label>
+      <select id="newWorkerRole">
+        <option value="installer">Орнотуучу</option>
+        <option value="maker">Жасоочу</option>
+      </select>
+      <label>Электрондук почта</label>
+      <input type="email" id="newWorkerEmail" placeholder="azamat@example.com">
+      <label>Убактылуу сырсөз</label>
+      <input type="text" id="newWorkerPassword" placeholder="Кеминде 6 белги">
+      <div id="workerCreateError" class="error-msg hidden"></div>
+      <button class="btn btn-success btn-block" onclick="createWorker()">Кызматкер кошуу</button>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">Кызматкерлер тизмеси</h3>
+      <div id="workersList"></div>
+    </div>
+    <div class="fab-space"></div>
+  </div>
+</div>
+
+<!-- ОРНОТУУЧУ ЭКРАНЫ -->
+<div id="installerScreen" class="hidden">
+  <header>
+    <div>
+      <h1 id="installerNameLabel">Орнотуучу</h1>
+      <div class="sub">Буйрутма Трекер</div>
+    </div>
+    <button class="btn btn-ghost" onclick="doLogout()">Чыгуу</button>
+  </header>
+  <div class="tabs">
+    <div class="tab active" id="installerTabNew" onclick="showInstallerTab('new')">Жаңы</div>
+    <div class="tab" id="installerTabWorking" onclick="showInstallerTab('working')">Иштеп жатам</div>
+    <div class="tab" id="installerTabReady" onclick="showInstallerTab('ready')">Даяр болгондор</div>
+  </div>
+  <div class="container" id="installerNewTab">
+    <div id="installerNewList"></div>
+    <div class="fab-space"></div>
+  </div>
+  <div class="container hidden" id="installerWorkingTab">
+    <div id="installerWorkingList"></div>
+    <div class="fab-space"></div>
+  </div>
+  <div class="container hidden" id="installerReadyTab">
+    <div id="installerReadyList"></div>
+    <div class="fab-space"></div>
+  </div>
+</div>
+
+<!-- ЖАСООЧУ ЭКРАНЫ -->
+<div id="makerScreen" class="hidden">
+  <header>
+    <div>
+      <h1 id="makerNameLabel">Жасоочу</h1>
+      <div class="sub">Буйрутма Трекер</div>
+    </div>
+    <button class="btn btn-ghost" onclick="doLogout()">Чыгуу</button>
+  </header>
+  <div class="tabs">
+    <div class="tab active" id="makerTabNew" onclick="showMakerTab('new')">Жаңы тапшырма</div>
+    <div class="tab" id="makerTabMine" onclick="showMakerTab('mine')">Менин иштерим</div>
+  </div>
+  <div class="container" id="makerNewTab">
+    <div id="makerNewList"></div>
+    <div class="fab-space"></div>
+  </div>
+  <div class="container hidden" id="makerMineTab">
+    <div id="makerMineList"></div>
+    <div class="fab-space"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+/* =========================================================
+   FIREBASE CONFIG
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBzVDeOMd2ldM1KGsAXLy2t9jAYhhs8ZQ0",
+  authDomain: "buyrutma-643de.firebaseapp.com",
+  projectId: "buyrutma-643de",
+  storageBucket: "buyrutma-643de.firebasestorage.app",
+  messagingSenderId: "700135790319",
+  appId: "1:700135790319:web:a241b6a7e812c4948e6d1a"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
+
+// Буйрутма процессинин статустары:
+// NEW -> (орнотуучу алат) -> CLAIMED -> (өлчөм берип жасоочуларга жөнөтөт) -> MEASURED
+// -> (жасоочу алат) -> IN_PRODUCTION -> (жасоочу бүттү дейт) -> READY
+// -> (орнотуучу орнотту деп белгилейт) -> INSTALLED
+const STATUS = {
+  NEW: 'NEW', CLAIMED: 'CLAIMED', MEASURED: 'MEASURED',
+  IN_PRODUCTION: 'IN_PRODUCTION', READY: 'READY', INSTALLED: 'INSTALLED'
+};
+const STATUS_LABEL = {
+  NEW: 'Жаңы', CLAIMED: 'Орнотуучу алды', MEASURED: 'Жасоочуларга жөнөтүлдү',
+  IN_PRODUCTION: 'Жасалып жатат', READY: 'Даяр', INSTALLED: 'Орнотулду (бүттү)'
+};
+const STATUS_BADGE_CLASS = {
+  NEW: 'badge-new', CLAIMED: 'badge-claimed', MEASURED: 'badge-measured',
+  IN_PRODUCTION: 'badge-production', READY: 'badge-ready', INSTALLED: 'badge-installed'
+};
+const ROLE_LABEL = { admin: 'Админ', installer: 'Орнотуучу', maker: 'Жасоочу' };
+
+let currentUser = null;
+let currentRole = null;
+let currentName = '';
+let allOrders = [];
+let allWorkers = [];
+let ordersUnsub = null;
+let workersUnsub = null;
+
+function showScreen(id) {
+  ['loading','loginScreen','adminScreen','installerScreen','makerScreen'].forEach(sid => {
+    document.getElementById(sid).classList.toggle('hidden', sid !== id);
+  });
+  if (id === 'loading') startLoadingWatchdog();
+  else stopLoadingWatchdog();
+}
+
+let loadingWatchdogTimer = null;
+function startLoadingWatchdog() {
+  document.getElementById('loadingDetail').textContent = '';
+  document.getElementById('loadingRetryBtn').style.display = 'none';
+  document.getElementById('loadingLogoutBtn').style.display = 'none';
+  if (loadingWatchdogTimer) clearTimeout(loadingWatchdogTimer);
+  loadingWatchdogTimer = setTimeout(() => {
+    document.getElementById('loadingDetail').textContent =
+      'Убакыт өтүп кетти. Мүмкүн себептер: Firestore эрежелери Publish басылган эмес, же интернет байланышы жок.';
+    document.getElementById('loadingRetryBtn').style.display = 'inline-block';
+    document.getElementById('loadingLogoutBtn').style.display = 'inline-block';
+  }, 8000);
+}
+function stopLoadingWatchdog() {
+  if (loadingWatchdogTimer) { clearTimeout(loadingWatchdogTimer); loadingWatchdogTimer = null; }
+}
+function forceLogout() {
+  stopLoadingWatchdog();
+  auth.signOut().finally(() => location.reload());
+}
+function showLoadingError(msg) {
+  document.getElementById('loadingText').textContent = 'Ката чыкты';
+  document.getElementById('loadingDetail').textContent = msg;
+  document.getElementById('loadingRetryBtn').style.display = 'inline-block';
+  document.getElementById('loadingLogoutBtn').style.display = 'inline-block';
+  stopLoadingWatchdog();
+}
+
+function fmtDate(ts) {
+  if (!ts || !ts.toDate) return '';
+  const d = ts.toDate();
+  return d.toLocaleString('ky-KG', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+/* ---------- AUTH ---------- */
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    currentUser = null; currentRole = null;
+    detachListeners();
+    showScreen('loginScreen');
+    return;
+  }
+  currentUser = user;
+  showScreen('loading');
+  document.getElementById('loadingDetail').textContent = 'UID: ' + user.uid;
+  try {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT: Firestore\'дон жооп 10 секунддан ашык келген жок.')), 10000)
+    );
+    const doc = await Promise.race([
+      db.collection('users').doc(user.uid).get(),
+      timeoutPromise
+    ]);
+    if (!doc.exists) {
+      showLoadingError('users коллекциясында UID=' + user.uid + ' деген document табылган жок.');
+      return;
+    }
+    const data = doc.data();
+    currentRole = data.role;
+    currentName = data.name || user.email;
+    if (!currentRole) {
+      showLoadingError('Document табылды, бирок "role" талаасы жок. role="admin"/"installer"/"maker" деп коюңуз.');
+      return;
+    }
+    if (currentRole === 'admin') {
+      document.getElementById('adminNameLabel').textContent = currentName;
+      showScreen('adminScreen');
+      attachOrdersListener();
+      attachWorkersListener();
+    } else if (currentRole === 'installer') {
+      document.getElementById('installerNameLabel').textContent = currentName;
+      showScreen('installerScreen');
+      attachOrdersListener();
+    } else if (currentRole === 'maker') {
+      document.getElementById('makerNameLabel').textContent = currentName;
+      showScreen('makerScreen');
+      attachOrdersListener();
+    } else {
+      showLoadingError('Белгисиз роль: ' + currentRole);
+    }
+  } catch (e) {
+    console.error(e);
+    showLoadingError((e.code ? '[' + e.code + '] ' : '') + e.message);
+  }
+});
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errBox = document.getElementById('loginError');
+  errBox.classList.add('hidden');
+  if (!email || !password) {
+    errBox.textContent = 'Email жана сырсөздү толтуруңуз';
+    errBox.classList.remove('hidden');
+    return;
+  }
+  showScreen('loading');
+  auth.signInWithEmailAndPassword(email, password).catch(e => {
+    showScreen('loginScreen');
+    errBox.textContent = 'Ката: email же сырсөз туура эмес';
+    errBox.classList.remove('hidden');
+  });
+}
+
+function doLogout() {
+  detachListeners();
+  auth.signOut();
+}
+
+function detachListeners() {
+  if (ordersUnsub) { ordersUnsub(); ordersUnsub = null; }
+  if (workersUnsub) { workersUnsub(); workersUnsub = null; }
+}
+
+/* ---------- ORDERS: REALTIME ---------- */
+function attachOrdersListener() {
+  if (ordersUnsub) ordersUnsub();
+  ordersUnsub = db.collection('orders').orderBy('createdAt', 'desc')
+    .onSnapshot(snap => {
+      allOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (currentRole === 'admin') renderAdminOrders();
+      else if (currentRole === 'installer') renderInstallerOrders();
+      else if (currentRole === 'maker') renderMakerOrders();
+    }, err => console.error(err));
+}
+
+function onOrderTypeChange() {
+  const select = document.getElementById('orderTypeSelect');
+  const customInput = document.getElementById('newOrderTitle');
+  if (select.value === 'OTHER') {
+    customInput.style.display = 'block';
+    customInput.value = '';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+  }
+}
+
+function createOrder() {
+  const select = document.getElementById('orderTypeSelect');
+  let title = select.value === 'OTHER'
+    ? document.getElementById('newOrderTitle').value.trim()
+    : select.value;
+  const phone = document.getElementById('newOrderPhone').value.trim();
+  const address = document.getElementById('newOrderAddress').value.trim();
+  const desc = document.getElementById('newOrderDesc').value.trim();
+  if (!title) { alert('Буйрутма түрүн тандаңыз же аталышын жазыңыз'); return; }
+  if (!phone) { alert('Кардардын телефонун жазыңыз'); return; }
+  db.collection('orders').add({
+    title, description: desc,
+    customerPhone: phone,
+    customerAddress: address,
+    status: STATUS.NEW,
+    createdBy: currentUser.uid,
+    createdByName: currentName,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    installerId: null, installerName: null, claimedAt: null,
+    measurements: null, measuredAt: null,
+    makerId: null, makerName: null, productionAt: null,
+    readyAt: null, installedAt: null
+  }).then(() => {
+    select.value = select.options[0].value;
+    document.getElementById('newOrderTitle').value = '';
+    document.getElementById('newOrderTitle').style.display = 'none';
+    document.getElementById('newOrderPhone').value = '';
+    document.getElementById('newOrderAddress').value = '';
+    document.getElementById('newOrderDesc').value = '';
+  }).catch(e => alert('Ката: ' + e.message));
+}
+
+function orderCardHtml(o, opts) {
+  opts = opts || {};
+  let html = `<div class="card">
+    <span class="badge ${STATUS_BADGE_CLASS[o.status]}">${STATUS_LABEL[o.status]}</span>
+    <p class="order-title">${escapeHtml(o.title)}</p>`;
+  if (o.customerPhone) html += `<p class="order-desc">📞 <a href="tel:${escapeHtml(o.customerPhone)}">${escapeHtml(o.customerPhone)}</a></p>`;
+  if (o.customerAddress) html += `<p class="order-desc">📍 ${escapeHtml(o.customerAddress)}</p>`;
+  if (o.description) html += `<p class="order-desc">${escapeHtml(o.description)}</p>`;
+  if (o.measurements) html += `<p class="order-meas">📐 Өлчөм: ${escapeHtml(o.measurements)}</p>`;
+  html += `<div class="order-meta">Түзүлдү: ${fmtDate(o.createdAt)}`;
+  if (o.installerName) html += `<br>Орнотуучу: ${escapeHtml(o.installerName)}`;
+  if (o.makerName) html += `<br>Жасоочу: ${escapeHtml(o.makerName)}`;
+  if (o.installedAt) html += `<br>Орнотулду: ${fmtDate(o.installedAt)}`;
+  html += `</div>`;
+  if (opts.extra) html += opts.extra;
+  html += `</div>`;
+  return html;
+}
+
+/* ---------- ADMIN ---------- */
+function renderAdminOrders() {
+  const box = document.getElementById('adminOrdersList');
+  box.innerHTML = allOrders.length === 0
+    ? '<div class="empty">Азырынча буйрутма жок</div>'
+    : allOrders.map(o => orderCardHtml(o)).join('');
+}
+
+/* ---------- ORNOTUUCHU (installer) ---------- */
+function renderInstallerOrders() {
+  const newList = allOrders.filter(o => o.status === STATUS.NEW);
+  const workingList = allOrders.filter(o => o.installerId === currentUser.uid &&
+    (o.status === STATUS.CLAIMED));
+  const readyList = allOrders.filter(o => o.installerId === currentUser.uid &&
+    (o.status === STATUS.MEASURED || o.status === STATUS.IN_PRODUCTION || o.status === STATUS.READY || o.status === STATUS.INSTALLED));
+
+  document.getElementById('installerNewList').innerHTML = newList.length === 0
+    ? '<div class="empty">Жаңы буйрутма жок</div>'
+    : newList.map(o => orderCardHtml(o, {
+        extra: `<button class="btn btn-primary btn-block" onclick="claimAsInstaller('${o.id}')">Алуу</button>`
+      })).join('');
+
+  document.getElementById('installerWorkingList').innerHTML = workingList.length === 0
+    ? '<div class="empty">Азырынча иштеп жаткан буйрутма жок</div>'
+    : workingList.map(o => orderCardHtml(o, {
+        extra: `
+          <label>Өлчөм / материал эскертүүсү</label>
+          <textarea id="meas_${o.id}" rows="3" placeholder="Мис: 3м x 1.2м, 4 даана, ак түс"></textarea>
+          <button class="btn btn-purple btn-block" onclick="sendToMakers('${o.id}')">Жасоочуларга жөнөтүү</button>
+        `
+      })).join('');
+
+  document.getElementById('installerReadyList').innerHTML = readyList.length === 0
+    ? '<div class="empty">Азырынча жок</div>'
+    : readyList.map(o => {
+        let extra = '';
+        if (o.status === STATUS.READY) {
+          extra = `<button class="btn btn-success btn-block" onclick="markInstalled('${o.id}')">Орнотулду деп белгилөө</button>`;
+        }
+        return orderCardHtml(o, { extra });
+      }).join('');
+}
+
+function claimAsInstaller(orderId) {
+  const ref = db.collection('orders').doc(orderId);
+  db.runTransaction(async (tx) => {
+    const doc = await tx.get(ref);
+    if (!doc.exists) throw new Error('Буйрутма табылган жок');
+    if (doc.data().status !== STATUS.NEW) throw new Error('ALREADY_TAKEN');
+    tx.update(ref, {
+      status: STATUS.CLAIMED,
+      installerId: currentUser.uid,
+      installerName: currentName,
+      claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).then(() => {
+    showInstallerTab('working');
+  }).catch(e => {
+    if (e.message === 'ALREADY_TAKEN') alert('Кечиресиз, бул буйрутманы башка орнотуучу мурун алып койду');
+    else alert('Ката: ' + e.message);
+  });
+}
+
+function sendToMakers(orderId) {
+  const textarea = document.getElementById('meas_' + orderId);
+  const measurements = textarea ? textarea.value.trim() : '';
+  if (!measurements) { alert('Өлчөмдү жазыңыз'); return; }
+  db.collection('orders').doc(orderId).update({
+    status: STATUS.MEASURED,
+    measurements,
+    measuredAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    showInstallerTab('ready');
+  }).catch(e => alert('Ката: ' + e.message));
+}
+
+function markInstalled(orderId) {
+  db.collection('orders').doc(orderId).update({
+    status: STATUS.INSTALLED,
+    installedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(e => alert('Ката: ' + e.message));
+}
+
+/* ---------- JASOOCHU (maker) ---------- */
+function renderMakerOrders() {
+  const newList = allOrders.filter(o => o.status === STATUS.MEASURED);
+  const mineList = allOrders.filter(o => o.makerId === currentUser.uid &&
+    (o.status === STATUS.IN_PRODUCTION || o.status === STATUS.READY || o.status === STATUS.INSTALLED));
+
+  document.getElementById('makerNewList').innerHTML = newList.length === 0
+    ? '<div class="empty">Жаңы тапшырма жок</div>'
+    : newList.map(o => orderCardHtml(o, {
+        extra: `<button class="btn btn-primary btn-block" onclick="claimAsMaker('${o.id}')">Алуу</button>`
+      })).join('');
+
+  document.getElementById('makerMineList').innerHTML = mineList.length === 0
+    ? '<div class="empty">Азырынча иш жок</div>'
+    : mineList.map(o => {
+        let extra = '';
+        if (o.status === STATUS.IN_PRODUCTION) {
+          extra = `<button class="btn btn-success btn-block" onclick="markReady('${o.id}')">Даяр болду</button>`;
+        }
+        return orderCardHtml(o, { extra });
+      }).join('');
+}
+
+function claimAsMaker(orderId) {
+  const ref = db.collection('orders').doc(orderId);
+  db.runTransaction(async (tx) => {
+    const doc = await tx.get(ref);
+    if (!doc.exists) throw new Error('Буйрутма табылган жок');
+    if (doc.data().status !== STATUS.MEASURED) throw new Error('ALREADY_TAKEN');
+    tx.update(ref, {
+      status: STATUS.IN_PRODUCTION,
+      makerId: currentUser.uid,
+      makerName: currentName,
+      productionAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).then(() => {
+    showMakerTab('mine');
+  }).catch(e => {
+    if (e.message === 'ALREADY_TAKEN') alert('Кечиресиз, бул тапшырманы башка жасоочу мурун алып койду');
+    else alert('Ката: ' + e.message);
+  });
+}
+
+function markReady(orderId) {
+  db.collection('orders').doc(orderId).update({
+    status: STATUS.READY,
+    readyAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(e => alert('Ката: ' + e.message));
+}
+
+/* ---------- ADMIN: WORKERS MANAGEMENT ---------- */
+function attachWorkersListener() {
+  if (workersUnsub) workersUnsub();
+  workersUnsub = db.collection('users').where('role', 'in', ['installer', 'maker'])
+    .onSnapshot(snap => {
+      allWorkers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderWorkers();
+    });
+}
+
+function renderWorkers() {
+  const box = document.getElementById('workersList');
+  box.innerHTML = allWorkers.length === 0
+    ? '<div class="empty">Кызматкер кошула элек</div>'
+    : allWorkers.map(w => `
+      <div class="worker-row">
+        <div>
+          <div style="font-weight:600;">${escapeHtml(w.name || '')} <span class="role-pill">${ROLE_LABEL[w.role] || w.role}</span></div>
+          <div style="font-size:12px;color:#9ca3af;">${escapeHtml(w.email || '')}</div>
+        </div>
+      </div>
+    `).join('');
+}
+
+// Экинчи (кошумча) Firebase колдонмосу аркылуу жаңы кызматкер түзүү,
+// ошондо администратор өз сессиясынан чыгып калбайт
+function createWorker() {
+  const name = document.getElementById('newWorkerName').value.trim();
+  const role = document.getElementById('newWorkerRole').value;
+  const email = document.getElementById('newWorkerEmail').value.trim();
+  const password = document.getElementById('newWorkerPassword').value;
+  const errBox = document.getElementById('workerCreateError');
+  errBox.classList.add('hidden');
+
+  if (!name || !email || !password) {
+    errBox.textContent = 'Бардык талааларды толтуруңуз';
+    errBox.classList.remove('hidden');
+    return;
+  }
+  if (password.length < 6) {
+    errBox.textContent = 'Сырсөз кеминде 6 белгиден турушу керек';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+  const secondaryAuth = secondaryApp.auth();
+
+  secondaryAuth.createUserWithEmailAndPassword(email, password)
+    .then(cred => {
+      return db.collection('users').doc(cred.user.uid).set({
+        role, name, email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => secondaryAuth.signOut());
+    })
+    .then(() => secondaryApp.delete())
+    .then(() => {
+      document.getElementById('newWorkerName').value = '';
+      document.getElementById('newWorkerEmail').value = '';
+      document.getElementById('newWorkerPassword').value = '';
+    })
+    .catch(e => {
+      errBox.textContent = 'Ката: ' + e.message;
+      errBox.classList.remove('hidden');
+      secondaryApp.delete().catch(()=>{});
+    });
+}
+
+/* ---------- TABS ---------- */
+function showAdminTab(tab) {
+  document.getElementById('adminTabOrders').classList.toggle('active', tab === 'orders');
+  document.getElementById('adminTabWorkers').classList.toggle('active', tab === 'workers');
+  document.getElementById('adminOrdersTab').classList.toggle('hidden', tab !== 'orders');
+  document.getElementById('adminWorkersTab').classList.toggle('hidden', tab !== 'workers');
+}
+
+function showInstallerTab(tab) {
+  document.getElementById('installerTabNew').classList.toggle('active', tab === 'new');
+  document.getElementById('installerTabWorking').classList.toggle('active', tab === 'working');
+  document.getElementById('installerTabReady').classList.toggle('active', tab === 'ready');
+  document.getElementById('installerNewTab').classList.toggle('hidden', tab !== 'new');
+  document.getElementById('installerWorkingTab').classList.toggle('hidden', tab !== 'working');
+  document.getElementById('installerReadyTab').classList.toggle('hidden', tab !== 'ready');
+}
+
+function showMakerTab(tab) {
+  document.getElementById('makerTabNew').classList.toggle('active', tab === 'new');
+  document.getElementById('makerTabMine').classList.toggle('active', tab === 'mine');
+  document.getElementById('makerNewTab').classList.toggle('hidden', tab !== 'new');
+  document.getElementById('makerMineTab').classList.toggle('hidden', tab !== 'mine');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
